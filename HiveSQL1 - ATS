@@ -1,0 +1,54 @@
+WITH ats_ftm AS (
+SELECT *,
+RANK() OVER(PARTITION BY tran_id ORDER BY eap_as_of_dt DESC) as rank,
+UPPER(cpty_name) as cpty_name_upper
+FROM fct_transaction_markets
+WHERE quarter(date) = quarter(current_date)
+AND record_src_ind = 'ATS'
+AND business IN ('PB', 'FX')
+AND record_type != 'C'
+AND cust_acct != ''
+AND cust_acct IS NOT NULL
+),
+
+filtered_ats_ftm AS (
+SELECT *
+FROM ats_ftm
+WHERE rank = 1
+),
+
+anti_join AS (
+SELECT a.*
+FROM filtered_ats_ftm a
+LEFT OUTER JOIN df_entities_historical b
+ON a.cust_acct = b.cust_acct
+AND a.cpty_name_upper = b.cpty_name
+WHERE b.cust_acct IS NULL AND b.cpty_name IS NULL
+),
+
+derive_acct_key AS (
+SELECT a.*, b.acct_key
+FROM anti_join a
+LEFT JOIN df_dim_account b
+ON a.eap_as_of_dt > b.eff_start_dt
+AND a.eap_as_of_dt <= b.eff_end_dt
+),
+
+derive_kyc_score AS (
+SELECT a.*, COALESCE(b.kyc_score, 10) as cust_kyc_risk_score
+FROM derive_acct_key a
+LEFT JOIN cust_kyc_score b
+ON a.cust_mcegfcid = b.gfcid
+),
+
+final_output AS (
+SELECT a.*
+FROM derive_kyc_score a
+LEFT OUTER JOIN df_erca b
+ON a.erca_focal_entity_id = b.erca_focal_entity_id
+AND a.business = b.business
+WHERE b.erca_focal_entity_id IS NULL AND b.business IS NULL
+)
+
+SELECT *
+FROM final_output;
