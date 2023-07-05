@@ -1,0 +1,13 @@
+WITH filtered_data AS (
+    SELECT *
+    FROM historical_mcer
+    WHERE typology_id IN ('TYP0001', 'TYP0002')
+),
+ranked_data AS (
+    SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY cust_acct, cpty_name ORDER BY rank DESC) as row_num
+    FROM filtered_data
+)
+SELECT cust_acct, UPPER(cpty_name) AS cpty_name
+FROM ranked_data
+WHERE row_num = 1 AND rank = 1
