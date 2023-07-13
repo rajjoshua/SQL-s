@@ -1,0 +1,61 @@
+WITH 
+
+step1 AS (
+  SELECT DISTINCT alert_id, acct_num
+  FROM erca_outbound_table 
+  WHERE batch_id = (
+    SELECT MAX(batch_id) 
+    FROM erca_outbound_table
+  ) 
+  AND behaviour_group_id = 'ERCA ATS'
+),
+
+step2 AS (
+  SELECT *
+  FROM fct_markets_tran_keys
+  WHERE record_src_ind = 'ATS'
+  AND eap_as_of_dt BETWEEN start_date AND end_date
+),
+
+step3 AS (
+  SELECT *
+  FROM fct_transfer_party
+  WHERE eap_as_of_dt BETWEEN start_date AND end_date
+),
+
+step4 AS (
+  SELECT *
+  FROM fct_fund_transfer
+  WHERE record_src_ind = 'ATS'
+  AND eap_as_of_dt BETWEEN start_date AND end_date
+),
+
+step5 AS (
+  SELECT *
+  FROM fct_security_transfer
+  WHERE record_src_ind = 'ATS'
+  AND eap_as_of_dt BETWEEN start_date AND end_date
+),
+
+step6 AS (
+  SELECT *
+  FROM step4
+  UNION ALL
+  SELECT *
+  FROM step5
+),
+
+step7 AS (
+  SELECT step1.alert_id, step1.acct_num, step2.*, step3.*, step6.*
+  FROM step1
+  LEFT JOIN step2 ON step1.acct_num = step2.acct_num
+  LEFT JOIN step3 ON step2.tran_key = step3.tran_key AND step2.eap_as_of_dt = step3.eap_as_of_dt
+  LEFT JOIN step6 ON step2.tran_key = step6.tran_key
+)
+
+SELECT tran_key, alert_id, 
+       CASE WHEN record_src_ind IN ('ATS', 'JRNL', 'TRD') THEN 'BAU' ELSE NULL END AS BAU_status, 
+       'ERCA' AS business_product_type, 
+       batch_id AS eap_load_id
+FROM step7
+GROUP BY tran_key, alert_id, record_src_ind, batch_id;
