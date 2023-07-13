@@ -11,14 +11,14 @@ step1 AS (
 ),
 
 step2 AS (
-  SELECT *
+  SELECT *, tran_key as tran_key_step2
   FROM fct_markets_tran_keys
   WHERE record_src_ind = 'ATS'
   AND eap_as_of_dt BETWEEN start_date AND end_date
 ),
 
 step3 AS (
-  SELECT *
+  SELECT *, tran_key as tran_key_step3
   FROM fct_transfer_party
   WHERE eap_as_of_dt BETWEEN start_date AND end_date
 ),
@@ -38,24 +38,27 @@ step5 AS (
 ),
 
 step6 AS (
-  SELECT *
-  FROM step4
-  UNION ALL
-  SELECT *
-  FROM step5
+  SELECT *, tran_key as tran_key_step6
+  FROM (
+    SELECT *
+    FROM step4
+    UNION ALL
+    SELECT *
+    FROM step5
+  ) as temp
 ),
 
 step7 AS (
   SELECT step1.alert_id, step1.acct_num, step2.*, step3.*, step6.*
   FROM step1
   LEFT JOIN step2 ON step1.acct_num = step2.acct_num
-  LEFT JOIN step3 ON step2.tran_key = step3.tran_key AND step2.eap_as_of_dt = step3.eap_as_of_dt
-  LEFT JOIN step6 ON step2.tran_key = step6.tran_key
+  LEFT JOIN step3 ON step2.tran_key_step2 = step3.tran_key_step3 AND step2.eap_as_of_dt = step3.eap_as_of_dt
+  LEFT JOIN step6 ON step2.tran_key_step2 = step6.tran_key_step6
 )
 
-SELECT tran_key, alert_id, 
-       CASE WHEN record_src_ind IN ('ATS', 'JRNL', 'TRD') THEN 'BAU' ELSE NULL END AS BAU_status, 
+SELECT step7.tran_key_step2, step7.alert_id, 
+       CASE WHEN step7.record_src_ind IN ('ATS', 'JRNL', 'TRD') THEN 'BAU' ELSE NULL END AS BAU_status, 
        'ERCA' AS business_product_type, 
-       batch_id AS eap_load_id
+       step7.batch_id AS eap_load_id
 FROM step7
-GROUP BY tran_key, alert_id, record_src_ind, batch_id;
+GROUP BY step7.tran_key_step2, step7.alert_id, step7.record_src_ind, step7.batch_id;
