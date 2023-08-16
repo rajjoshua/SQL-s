@@ -51,6 +51,14 @@ FotpPostColumnValidation AS (
         p.intrl_acct_fl IS NULL OR
         p.party_addr_strt_line_tx IS NULL
       )
+),
+
+-- Step 6: Validate that all transactions in fot_post are in fotp_post
+FotToFotpValidation AS (
+    SELECT f.trxn_intrl_id, 'FotToFotpValidation' AS validation_type
+    FROM Fot_post f
+    LEFT JOIN fotp_post p ON f.trxn_intrl_id = p.fo_trxn_intrl_id
+    WHERE p.fo_trxn_intrl_id IS NULL
 )
 
 -- Return failed transaction IDs along with the validation type
@@ -61,4 +69,7 @@ SELECT fo_trxn_intrl_id AS Failed_Transaction_ID, validation_type
 FROM FotpPost4LegsValidation
 UNION ALL
 SELECT fo_trxn_intrl_id AS Failed_Transaction_ID, validation_type
-FROM FotpPostColumnValidation;
+FROM FotpPostColumnValidation
+UNION ALL
+SELECT trxn_intrl_id AS Failed_Transaction_ID, validation_type
+FROM FotToFotpValidation;
