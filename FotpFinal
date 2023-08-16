@@ -1,0 +1,64 @@
+WITH 
+
+-- Step 1: Filter transactions from FOT_Pre
+FilteredTransactions AS (
+    SELECT transaction_id_column_name
+    FROM FOT_Pre
+    WHERE TRXN_TYPE1_CD = 723
+),
+
+-- Step 2: Filter based on less than 4 party legs from Fotp_pre
+TransactionsWithLessThan4Legs AS (
+    SELECT p.fo_trxn_intrl_id
+    FROM Fotp_pre p
+    JOIN FilteredTransactions ft ON p.fo_trxn_intrl_id = ft.transaction_id_column_name
+    GROUP BY p.fo_trxn_intrl_id
+    HAVING COUNT(p.fo_trxn_party_role_cd) < 4
+),
+
+-- Step 3: Validation on Fot_post table
+FotPostValidation AS (
+    SELECT f.trxn_intrl_id, 'FotPostValidation' AS validation_type
+    FROM Fot_post f
+    JOIN TransactionsWithLessThan4Legs t ON f.trxn_intrl_id = t.fo_trxn_intrl_id
+    WHERE f.trxn_type1_cide <> 723 
+       OR f.src_sys_cs <> 'RC' 
+       OR SUBSTR(f.trxn_intrl_id, 1, 3) <> '360' 
+       OR SUBSTR(f.trxn_intrl_id, -2) <> 'RC'
+),
+
+-- Step 4: Validation on fotp_post for 4 legs
+FotpPost4LegsValidation AS (
+    SELECT p.fo_trxn_intrl_id, 'FotpPost4LegsValidation' AS validation_type
+    FROM fotp_post p
+    JOIN FilteredTransactions ft ON p.fo_trxn_intrl_id = ft.transaction_id_column_name
+    WHERE p.fo_trxn_party_role_cd IN ('ORG', 'SEND', 'RCV', 'Bene')
+    GROUP BY p.fo_trxn_intrl_id
+    HAVING COUNT(DISTINCT p.fo_trxn_party_role_cd) <> 4
+),
+
+-- Step 5: Additional Validation on fotp_post for column population
+FotpPostColumnValidation AS (
+    SELECT p.fo_trxn_intrl_id, 'FotpPostColumnValidation' AS validation_type
+    FROM fotp_post p
+    JOIN FilteredTransactions ft ON p.fo_trxn_intrl_id = ft.transaction_id_column_name
+    WHERE p.fo_trxn_party_role_cd IN ('ORG', 'SEND', 'RCV', 'Bene')
+      AND (
+        p.party_id IS NULL OR
+        p.party_nm IS NULL OR
+        p.party_addr_ctry_cd IS NULL OR
+        p.party_id_type_cd IS NULL OR
+        p.intrl_acct_fl IS NULL OR
+        p.party_addr_strt_line_tx IS NULL
+      )
+)
+
+-- Return failed transaction IDs along with the validation type
+SELECT trxn_intrl_id AS Failed_Transaction_ID, validation_type
+FROM FotPostValidation
+UNION ALL
+SELECT fo_trxn_intrl_id AS Failed_Transaction_ID, validation_type
+FROM FotpPost4LegsValidation
+UNION ALL
+SELECT fo_trxn_intrl_id AS Failed_Transaction_ID, validation_type
+FROM FotpPostColumnValidation;
