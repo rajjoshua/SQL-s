@@ -1,0 +1,15 @@
+WITH RankedData AS (
+  SELECT 
+    a.acct_intrl_id, 
+    a.eap_as_of_dt,
+    b.acct_id,
+    RANK() OVER (PARTITION BY a.acct_intrl_id ORDER BY a.eap_as_of_dt DESC) AS rank
+  FROM acct a
+  JOIN icg_seg_processing b ON a.acct_intrl_id = b.acct_id
+)
+SELECT 
+  acct_intrl_id,
+  eap_as_of_dt,
+  acct_id
+FROM RankedData
+WHERE rank = 1;
