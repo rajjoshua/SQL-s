@@ -1,6 +1,10 @@
-SELECT a.acct_intrl_id, MAX(a.eap_as_of_dt) AS latest_date, COUNT(b.acct_id) AS record_count
-FROM acct a
-JOIN icg_seg_processing b
-ON a.acct_intrl_id = b.acct_id
-GROUP BY a.acct_intrl_id
-ORDER BY a.acct_intrl_id;
+WITH LatestAcct AS (
+  SELECT acct_intrl_id, MAX(eap_as_of_dt) AS latest_date
+  FROM acct
+  WHERE country = 'YourTargetCountry' AND eap_as_of_dt = '2023-08-25'
+  GROUP BY acct_intrl_id
+)
+SELECT a.latest_date, COUNT(b.acct_id) AS record_count
+FROM LatestAcct a
+JOIN icg_seg_processing b ON a.acct_intrl_id = b.acct_id
+GROUP BY a.latest_date;
