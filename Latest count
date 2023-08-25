@@ -1,0 +1,6 @@
+SELECT a.acct_intrl_id, MAX(a.eap_as_of_dt) AS latest_date, COUNT(b.acct_id) AS record_count
+FROM acct a
+JOIN icg_seg_processing b
+ON a.acct_intrl_id = b.acct_id
+GROUP BY a.acct_intrl_id
+ORDER BY a.acct_intrl_id;
