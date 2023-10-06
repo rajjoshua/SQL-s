@@ -1,0 +1,38 @@
+WITH rolling_3_day_window AS (
+    SELECT
+        focal_entity_id,
+        transaction_date,
+        tran_amount,
+        LEAD(transaction_date, 2) OVER (PARTITION BY focal_entity_id, SUBSTRING(transaction_date, 1, 7) ORDER BY transaction_date) AS third_day_transaction_date
+    FROM
+        your_table_name
+),
+valid_3_day_transactions AS (
+    SELECT
+        focal_entity_id,
+        transaction_date,
+        tran_amount,
+        third_day_transaction_date
+    FROM
+        rolling_3_day_window
+    WHERE
+        third_day_transaction_date IS NOT NULL
+),
+aggregated_transactions AS (
+    SELECT
+        focal_entity_id,
+        SUBSTRING(transaction_date, 1, 7) AS transaction_month,
+        SUM(tran_amount) AS aggregated_tran_amount
+    FROM
+        valid_3_day_transactions
+    GROUP BY
+        focal_entity_id, SUBSTRING(transaction_date, 1, 7)
+)
+SELECT
+    focal_entity_id,
+    transaction_month,
+    aggregated_tran_amount
+FROM
+    aggregated_transactions
+ORDER BY
+    focal_entity_id, transaction_month;
