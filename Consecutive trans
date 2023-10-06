@@ -1,0 +1,23 @@
+WITH continuous_transaction_days AS (
+    SELECT
+        focal_entity_id,
+        SUBSTRING(transaction_date, 1, 7) AS transaction_month,
+        COUNT(DISTINCT CAST(SUBSTRING(transaction_date, 9, 2) AS INT)) AS days_with_transactions
+    FROM
+        your_table_name
+    GROUP BY
+        focal_entity_id, SUBSTRING(transaction_date, 1, 7)
+    HAVING
+        COUNT(DISTINCT CAST(SUBSTRING(transaction_date, 9, 2) AS INT)) >= 3
+)
+
+SELECT
+    focal_entity_id,
+    transaction_month,
+    SUM(tran_amount) AS aggregated_tran_amount
+FROM
+    your_table_name
+WHERE
+    focal_entity_id IN (SELECT focal_entity_id FROM continuous_transaction_days)
+GROUP BY
+    focal_entity_id, transaction_month;
