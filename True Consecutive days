@@ -1,0 +1,42 @@
+WITH ranked_transactions AS (
+    SELECT
+        focal_entity_id,
+        transaction_date,
+        tran_amount,
+        ROW_NUMBER() OVER (PARTITION BY focal_entity_id, SUBSTRING(transaction_date, 1, 7) ORDER BY transaction_date) AS row_num
+    FROM
+        your_table_name
+),
+consecutive_transaction_days AS (
+    SELECT
+        focal_entity_id,
+        SUBSTRING(transaction_date, 1, 7) AS transaction_month,
+        transaction_date,
+        tran_amount
+    FROM
+        ranked_transactions
+    WHERE
+        row_num = 1
+    UNION ALL
+    SELECT
+        t.focal_entity_id,
+        SUBSTRING(t.transaction_date, 1, 7) AS transaction_month,
+        t.transaction_date,
+        t.tran_amount
+    FROM
+        ranked_transactions t
+    JOIN
+        consecutive_transaction_days c
+    ON
+        t.focal_entity_id = c.focal_entity_id
+        AND SUBSTRING(t.transaction_date, 1, 7) = c.transaction_month
+        AND DATEDIFF(t.transaction_date, c.transaction_date) = 1
+)
+SELECT
+    focal_entity_id,
+    transaction_month,
+    SUM(tran_amount) AS aggregated_tran_amount
+FROM
+    consecutive_transaction_days
+GROUP BY
+    focal_entity_id, transaction_month;
