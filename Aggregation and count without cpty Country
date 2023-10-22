@@ -1,0 +1,62 @@
+WITH ranked_transactions AS (
+  SELECT
+    tp.party_id,
+    ai.tran_month,
+    ai.tran_year,
+    tp.eap_as_of_date,
+    tp.tran_key,
+    t.tran_id,
+    t.tran_status,
+    t.transaction_type,
+    t.tran_amount,
+    ROW_NUMBER() OVER (PARTITION BY tp.party_id, ai.tran_month, ai.tran_year, t.tran_id, t.transaction_type ORDER BY tp.eap_as_of_date DESC) AS row_num
+  FROM
+    fund_transactions t
+    JOIN account_info ai ON t.account_id = ai.account_id
+    JOIN transfer_party tp ON tp.tran_key = t.tran_key AND tp.eap_as_of_date = t.eap_as_of_date
+  WHERE
+    t.tran_status IN ('New', 'Updated', 'Cancelled')
+  UNION ALL
+  SELECT
+    tp.party_id,
+    ai.tran_month,
+    ai.tran_year,
+    tp.eap_as_of_date,
+    tp.tran_key,
+    t.tran_id,
+    t.tran_status,
+    t.transaction_type,
+    t.tran_amount,
+    ROW_NUMBER() OVER (PARTITION BY tp.party_id, ai.tran_month, ai.tran_year, t.tran_id, t.transaction_type ORDER BY tp.eap_as_of_date DESC) AS row_num
+  FROM
+    security_transactions t
+    JOIN account_info ai ON t.account_id = ai.account_id
+    JOIN transfer_party tp ON tp.tran_key = t.tran_key AND tp.eap_as_of_date = t.eap_as_of_date
+  WHERE
+    t.tran_status IN ('New', 'Updated', 'Cancelled')
+)
+
+SELECT
+  r.party_id,
+  r.tran_month,
+  r.tran_year,
+  r.transaction_type,
+  COUNT(DISTINCT CASE WHEN r.tran_status IN ('New', 'Updated', 'Cancelled') THEN r.tran_id END) AS transaction_count,
+  SUM(CASE WHEN r.tran_status = 'New' THEN r.tran_amount
+           WHEN r.tran_status = 'Updated' AND r.row_num = 1 THEN r.tran_amount
+           ELSE 0 END) AS aggregated_amount
+FROM
+  ranked_transactions r
+WHERE
+  NOT EXISTS (
+    SELECT 1
+    FROM ranked_transactions AS r2
+    WHERE r2.party_id = r.party_id
+      AND r2.tran_month = r.tran_month
+      AND r2.tran_year = r.tran_year
+      AND r2.tran_id = r.tran_id
+      AND r2.row_num = 1
+      AND r2.tran_status = 'Cancelled'
+  )
+GROUP BY
+  r.party_id, r.tran_month, r.tran_year, r.transaction_type;
