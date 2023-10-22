@@ -34,6 +34,13 @@ WITH ranked_transactions AS (
     JOIN transfer_party tp ON tp.tran_key = t.tran_key AND tp.eap_as_of_date = t.eap_as_of_date
   WHERE
     t.tran_status IN ('New', 'Updated', 'Cancelled')
+),
+
+transactions_with_status AS (
+  SELECT
+    r.*,
+    MAX(CASE WHEN r.tran_status = 'Cancelled' THEN 1 ELSE 0 END) OVER (PARTITION BY r.party_id, r.tran_month, r.tran_year, r.tran_id, r.transaction_type) AS has_cancelled
+  FROM ranked_transactions r
 )
 
 SELECT
@@ -41,22 +48,12 @@ SELECT
   r.tran_month,
   r.tran_year,
   r.transaction_type,
-  COUNT(DISTINCT CASE WHEN r.tran_status IN ('New', 'Updated', 'Cancelled') THEN r.tran_id END) AS transaction_count,
-  SUM(CASE WHEN r.tran_status = 'New' THEN r.tran_amount
-           WHEN r.tran_status = 'Updated' AND r.row_num = 1 THEN r.tran_amount
-           ELSE 0 END) AS aggregated_amount
-FROM
-  ranked_transactions r
-WHERE
-  NOT EXISTS (
-    SELECT 1
-    FROM ranked_transactions AS r2
-    WHERE r2.party_id = r.party_id
-      AND r2.tran_month = r.tran_month
-      AND r2.tran_year = r.tran_year
-      AND r2.tran_id = r.tran_id
-      AND r2.row_num = 1
-      AND r2.tran_status = 'Cancelled'
-  )
+  COUNT(CASE WHEN r.has_cancelled = 0 THEN 1 END) AS transaction_count, -- adjusted here to count all valid statuses
+  SUM(CASE
+    WHEN r.has_cancelled = 0 AND r.tran_status = 'New' THEN r.tran_amount
+    WHEN r.has_cancelled = 0 AND r.tran_status = 'Updated' AND r.row_num = 1 THEN r.tran_amount
+    ELSE 0
+  END) AS aggregated_amount
+FROM transactions_with_status r
 GROUP BY
   r.party_id, r.tran_month, r.tran_year, r.transaction_type;
