@@ -1,0 +1,88 @@
+WITH ATPTransactionFlags AS (
+    SELECT tran_id,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM ATP AS A3
+                   WHERE A.tran_id = A3.tran_id
+                   AND A3.party_role = 'INGA1'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA1,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM ATP AS A4
+                   WHERE A.tran_id = A4.tran_id
+                   AND A4.party_role = 'INGA2'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA2,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM ATP AS A5
+                   WHERE A.tran_id = A5.tran_id
+                   AND A5.party_role = 'INGA3'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA3,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM ATP AS A6
+                   WHERE A.tran_id = A6.tran_id
+                   AND A6.party_role = 'OGB'
+               ) THEN 1
+               ELSE 0
+           END AS has_OGB
+    FROM ATP AS A
+),
+FTPTransactionFlags AS (
+    SELECT tran_id,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM FTP AS F3
+                   WHERE F.tran_id = F3.tran_id
+                   AND F3.party_role = 'INGA1'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA1_FTP,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM FTP AS F4
+                   WHERE F.tran_id = F4.tran_id
+                   AND F4.party_role = 'INGA2'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA2_FTP,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM FTP AS F5
+                   WHERE F.tran_id = F5.tran_id
+                   AND F5.party_role = 'INGA3'
+               ) THEN 1
+               ELSE 0
+           END AS has_INGA3_FTP,
+           CASE 
+               WHEN EXISTS (
+                   SELECT 1
+                   FROM FTP AS F6
+                   WHERE F.tran_id = F6.tran_id
+                   AND F6.party_role = 'OGB'
+               ) THEN 1
+               ELSE 0
+           END AS has_OGB_FTP
+    FROM FTP AS F
+)
+SELECT A.tran_id,
+       CASE 
+           WHEN A.has_INGA1 = 1 AND A.has_INGA2 = 0 AND A.has_INGA3 = 0 AND A.has_OGB = 0 
+           AND F.has_INGA1_FTP = 0 AND F.has_INGA2_FTP = 0 AND F.has_INGA3_FTP = 0 AND F.has_OGB_FTP = 1 THEN 'Valid'
+           ELSE 'Invalid'
+       END AS validation_result
+FROM ATPTransactionFlags A
+LEFT JOIN FTPTransactionFlags F ON A.tran_id = F.tran_id;
