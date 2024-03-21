@@ -1,0 +1,23 @@
+WITH ATPTransactionFlags AS (
+    SELECT A.tran_id,
+           CASE WHEN A3.tran_id IS NOT NULL THEN 1 ELSE 0 END AS has_INGA1,
+           CASE WHEN A4.tran_id IS NOT NULL THEN 1 ELSE 0 END AS has_INGA2,
+           CASE WHEN A5.tran_id IS NOT NULL THEN 1 ELSE 0 END AS has_INGA3,
+           CASE WHEN A6.tran_id IS NOT NULL THEN 1 ELSE 0 END AS has_OGB,
+           -- Additional columns to fetch
+           CONCAT_WS(',', A7.country_code, A7.city, A7.state) AS concatenated_columns
+    FROM ATP AS A
+    LEFT JOIN ATP AS A3 ON A.tran_id = A3.tran_id AND A3.party_role = 'INGA1'
+    LEFT JOIN ATP AS A4 ON A.tran_id = A4.tran_id AND A4.party_role = 'INGA2'
+    LEFT JOIN ATP AS A5 ON A.tran_id = A5.tran_id AND A5.party_role = 'INGA3'
+    LEFT JOIN ATP AS A6 ON A.tran_id = A6.tran_id AND A6.party_role = 'OGB'
+    LEFT JOIN ATP AS A7 ON A.tran_id = A7.tran_id AND A7.party_role = 'INGA1'
+)
+SELECT tran_id,
+       has_INGA1,
+       has_INGA2,
+       has_INGA3,
+       has_OGB,
+       concatenated_columns
+FROM ATPTransactionFlags
+WHERE has_INGA1 = 1; -- Only select ATP records with INGA1
