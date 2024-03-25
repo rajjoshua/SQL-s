@@ -1,0 +1,36 @@
+WITH january_transactions AS (
+    SELECT *
+    FROM ftc
+    WHERE substr(tran_type_code, 7, 4) = 'DCAS'
+      AND tran_purpose_code = 'general'
+      AND posting_date BETWEEN '2024-01-01' AND '2024-01-31'
+),
+january_aggregates AS (
+    SELECT customer_id,
+           business_product_type,
+           SUM(tran_amount_cust_local_ccy) AS total_amount,
+           COUNT(*) AS transaction_count
+    FROM january_transactions
+    GROUP BY customer_id, business_product_type
+),
+lookback_transactions AS (
+    SELECT *
+    FROM ftc
+    WHERE substr(tran_type_code, 7, 4) = 'DCAS'
+      AND tran_purpose_code = 'general'
+      AND posting_date BETWEEN '2023-10-01' AND '2023-12-31'
+),
+lookback_aggregates AS (
+    SELECT customer_id,
+           business_product_type,
+           SUM(tran_amount_cust_local_ccy) AS total_amount,
+           COUNT(*) AS transaction_count
+    FROM lookback_transactions
+    GROUP BY customer_id, business_product_type
+)
+SELECT january.customer_id,
+       january.business_product_type
+FROM january_aggregates january
+JOIN lookback_aggregates lookback
+ON january.customer_id = lookback.customer_id
+AND january.business_product_type = lookback.business_product_type;
