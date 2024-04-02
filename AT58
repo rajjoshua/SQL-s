@@ -1,0 +1,28 @@
+WITH enriched_data AS (
+    SELECT
+        CASE 
+            WHEN MIN(CASE WHEN party_role IN ('ORG', 'OGB') AND party_identifier_type_id IN ('FED', 'BIC', 'CHP', 'SC', 'ZEN', 'OTF') THEN Country_code ELSE NULL END) OVER (PARTITION BY transaction_id) = 1 THEN Country_code
+            ELSE NULL
+        END AS originator_country_code,
+        CASE 
+            WHEN MIN(CASE WHEN party_role IN ('BNF', 'BBK') AND party_identifier_type_id IN ('FED', 'BIC', 'CHP', 'SC', 'ZEN', 'OTF') THEN Country_code ELSE NULL END) OVER (PARTITION BY transaction_id) = 1 THEN Country_code
+            ELSE NULL
+        END AS beneficiary_country_code
+    FROM
+        your_table_name
+)
+SELECT
+    CASE
+        WHEN (
+            (originator_country_code = '*99' OR originator_country_code = '')
+        ) THEN 'Y'
+        ELSE 'N'
+    END AS Originator_Cross_Border_Transaction_Indicator,
+    CASE
+        WHEN (
+            (beneficiary_country_code = '*99' OR beneficiary_country_code = '')
+        ) THEN 'Y'
+        ELSE 'N'
+    END AS Beneficiary_Cross_Border_Transaction_Indicator
+FROM
+    enriched_data;
