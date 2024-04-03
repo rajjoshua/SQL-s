@@ -1,0 +1,11 @@
+SELECT 
+    CID,
+    P1,
+    P2,
+    P10,
+    STRING_AGG(CASE WHEN pMonth IS NOT NULL THEN CONCAT(P3, ':', pMonth) END, ';') AS P3_concat,
+    STRING_AGG(CASE WHEN pMonth IS NOT NULL THEN CONCAT(P4, ':', pMonth) END, ';') AS P4_concat
+FROM 
+    your_table_name
+GROUP BY 
+    CID, P1, P2, P10;
