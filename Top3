@@ -1,0 +1,28 @@
+WITH top_mcc_contributors AS (
+    SELECT 
+        customer, 
+        business_product_type,
+        mcc_code, 
+        SUM(transaction_amount) AS total_transaction_amount,
+        ROW_NUMBER() OVER (PARTITION BY customer, business_product_type ORDER BY SUM(transaction_amount) DESC) AS rn
+    FROM your_table_name
+    WHERE trantype = 'DW' AND MITA > 20 AND currency = 'USD'
+    GROUP BY customer, business_product_type, mcc_code
+),
+customer_business_summary AS (
+    SELECT 
+        customer, 
+        business_product_type,
+        SUM(total_transaction_amount) AS aggregate_transaction_amount
+    FROM (
+        SELECT 
+            customer, 
+            business_product_type,
+            mcc_code, 
+            total_transaction_amount
+        FROM top_mcc_contributors
+        WHERE rn <= 3
+    ) AS top_3_mcc_per_customer
+    GROUP BY customer, business_product_type
+)
+SELECT * FROM customer_business_summary;
