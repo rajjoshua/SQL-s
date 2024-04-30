@@ -1,0 +1,20 @@
+WITH OriginatorFinancialInstitutions AS (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY tran_id ORDER BY
+                              CASE WHEN party_role = 'ORG' THEN 1
+                                   WHEN party_role = 'OGB' THEN 2
+                                   ELSE 3 END,
+                              party_id_type
+                             ) AS row_num
+    FROM financial_institutions
+)
+SELECT 
+    CASE 
+        WHEN 
+            (SELECT addr_cntry FROM OriginatorFinancialInstitutions WHERE row_num = 1 AND tran_id = originator_tran_id) 
+        <> 
+            (SELECT addr_cntry FROM financial_institutions WHERE party_role IN ('ORG', 'OGB') AND party_id_type IN ('FED', 'BIC', 'CHP', 'SC', 'ZEN', 'OTF') AND tran_id = beneficiary_tran_id) 
+        THEN 'Cross Border Transfer'
+        ELSE NULL 
+    END AS transfer_type
+FROM your_table;
