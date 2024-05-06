@@ -1,33 +1,19 @@
-SELECT
-    Param2,
-    Param1,
-    CONCAT_WS(',',
-        COALESCE(SORT_ARRAY(
-            COLLECT_LIST(
-                CASE
-                    WHEN PCL3.posting_month = 'Dec' THEN
-                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-2022')), COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
-                    ELSE NULL
-                END
-            )
-        ), '2022-12-31:0'),
-        COALESCE(SORT_ARRAY(
-            COLLECT_LIST(
-                CASE
-                    WHEN PCL3.posting_month = 'Jan' THEN
-                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-2023')), COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
-                    ELSE NULL
-                END
-            )
-        ), '2023-01-31:0'),
-        COALESCE(SORT_ARRAY(
-            COLLECT_LIST(
-                CASE
-                    WHEN PCL3.posting_month = 'Feb' THEN
-                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-2023')), COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
-                    ELSE NULL
-                END
-            )
-        ), '2023-02-28:0')
-    ) AS thres_param_7_cal_val
+SELECT 
+    Param2, 
+    Param1, 
+    CONCAT_WS(',', 
+        SORT_ARRAY( 
+            COLLECT_LIST( 
+                CASE 
+                    WHEN PCL3.posting_month = 'Dec' THEN 
+                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-01')), ':', COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
+                    WHEN PCL3.posting_month = 'Jan' THEN 
+                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-01')), ':', COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
+                    WHEN PCL3.posting_month = 'Feb' THEN 
+                        CONCAT(LAST_DAY(CONCAT(PCL3.posting_month, '-01')), ':', COALESCE(PCL3.agg_rpt_mnths_xfer_occr_cnt, 0))
+                    ELSE CONCAT('2023-02-28', ':', 0) -- Default to Feb 28, 2023 with a value of 0 if posting_month is null
+                END 
+            ) 
+        ) 
+    ) AS thres_param_7_cal_val 
 FROM your_table_name PCL3;
