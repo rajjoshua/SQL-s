@@ -3,3 +3,5 @@
 =TEXTJOIN(",",TRUE,IFERROR(FILTERXML("<t><s>"&SUBSTITUTE(E5,",","</s><s>")&"</s></t>","//s[contains(., TEXTJOIN('',TRUE,TEXT(SEQUENCE(3,1,DATE(2022,12,1),1),""yyyy-mm-dd")))][1]"),"yyyy-mm-dd:0"))
 
 =TEXTJOIN(",", TRUE, IFERROR(FILTERXML("<t><s>"&SUBSTITUTE(E5,",","</s><s>")&"</s></t>","//s[contains(., TEXTJOIN('',TRUE,TEXT(SEQUENCE(3,1,DATE(2022,12,1),1), 'yyyy-mm-dd')))]"),"yyyy-mm-dd:0"))
+
+=TEXTJOIN(",", TRUE, IF(ISNUMBER(SEARCH(TEXT(SEQUENCE(3, 1, DATE(2022, 12, 1), 1), "yyyy-mm-dd"), E5)), MID(E5, SEARCH(TEXT(SEQUENCE(3, 1, DATE(2022, 12, 1), 1), "yyyy-mm-dd"), E5), IFERROR(SEARCH(",", E5, SEARCH(TEXT(SEQUENCE(3, 1, DATE(2022, 12, 1), 1), "yyyy-mm-dd"), E5)), LEN(E5) + 1) - SEARCH(TEXT(SEQUENCE(3, 1, DATE(2022, 12, 1), 1), "yyyy-mm-dd"), E5)), TEXT(SEQUENCE(3, 1, DATE(2022, 12, 1), 1), "yyyy-mm-dd") & ":0")))
