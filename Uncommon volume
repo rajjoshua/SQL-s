@@ -1,0 +1,36 @@
+WITH CustomerTransactionMetrics AS (
+    SELECT 
+        customer_id,
+        COUNT(*) AS transaction_count,
+        SUM(transaction_amount) AS total_transaction_value
+    FROM 
+        transactions
+    GROUP BY 
+        customer_id
+),
+TransactionStats AS (
+    SELECT 
+        AVG(transaction_count) AS avg_count,
+        STDDEV_POP(transaction_count) AS stddev_count,
+        AVG(total_transaction_value) AS avg_value,
+        STDDEV_POP(total_transaction_value) AS stddev_value
+    FROM 
+        CustomerTransactionMetrics
+),
+UncommonVolumeValueCustomers AS (
+    SELECT 
+        c.customer_id
+    FROM 
+        CustomerTransactionMetrics c
+    CROSS JOIN 
+        TransactionStats ts
+    WHERE 
+        c.transaction_count > ts.avg_count + 2 * ts.stddev_count
+        OR c.transaction_count < ts.avg_count - 2 * ts.stddev_count
+        OR c.total_transaction_value > ts.avg_value + 2 * ts.stddev_value
+        OR c.total_transaction_value < ts.avg_value - 2 * ts.stddev_value
+)
+SELECT 
+    DISTINCT customer_id
+FROM 
+    UncommonVolumeValueCustomers;
