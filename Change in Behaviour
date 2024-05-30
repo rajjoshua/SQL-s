@@ -1,0 +1,71 @@
+WITH MonthlySums AS (
+    SELECT
+        t.customer_id,
+        DATE_FORMAT(t.transaction_date, 'yyyy-MM') AS transaction_month,
+        SUM(CASE WHEN t.transaction_type = 'High-Risk PURCHASE' THEN t.transaction_amount ELSE 0 END) AS monthly_high_risk_purchases
+    FROM
+        transactions t
+    JOIN
+        customers c ON t.customer_id = c.customer_id
+    WHERE
+        c.region = 'APAC'
+        AND t.transaction_date BETWEEN DATE_SUB('2023-03-01', INTERVAL 3 MONTH) AND '2023-02-28'
+    GROUP BY
+        t.customer_id,
+        DATE_FORMAT(t.transaction_date, 'yyyy-MM')
+),
+Stats AS (
+    SELECT
+        customer_id,
+        AVG(monthly_high_risk_purchases) AS avg_monthly_high_risk_purchases,
+        STDDEV_POP(monthly_high_risk_purchases) AS stddev_monthly_high_risk_purchases
+    FROM
+        MonthlySums
+    WHERE
+        monthly_high_risk_purchases > 0
+    GROUP BY
+        customer_id
+),
+CurrentPeriodSums AS (
+    SELECT
+        t.customer_id,
+        SUM(CASE WHEN t.transaction_type = 'High-Risk PURCHASE' THEN t.transaction_amount ELSE 0 END) AS current_period_high_risk_purchases
+    FROM
+        transactions t
+    JOIN
+        customers c ON t.customer_id = c.customer_id
+    WHERE
+        c.region = 'APAC'
+        AND t.transaction_date BETWEEN '2023-03-01' AND '2023-03-31'
+    GROUP BY
+        t.customer_id
+),
+FilteredCustomers AS (
+    SELECT
+        c.customer_id,
+        c.region,
+        DATEDIFF('2023-03-31', c.relationship_start_date) AS relationship_length_days,
+        s.avg_monthly_high_risk_purchases,
+        s.stddev_monthly_high_risk_purchases,
+        cps.current_period_high_risk_purchases
+    FROM
+        customers c
+    JOIN
+        Stats s ON c.customer_id = s.customer_id
+    JOIN
+        CurrentPeriodSums cps ON c.customer_id = cps.customer_id
+    WHERE
+        c.region = 'APAC'
+        AND DATEDIFF('2023-03-31', c.relationship_start_date) >= 30
+)
+SELECT
+    fc.customer_id,
+    fc.region,
+    fc.relationship_length_days,
+    fc.current_period_high_risk_purchases,
+    fc.avg_monthly_high_risk_purchases,
+    fc.stddev_monthly_high_risk_purchases
+FROM
+    FilteredCustomers fc
+WHERE
+    fc.current_period_high_risk_purchases >= fc.avg_monthly_high_risk_purchases + 2 * fc.stddev_monthly_high_risk_purchases;
